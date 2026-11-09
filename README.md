@@ -190,10 +190,9 @@ connects to the instance over SSH.
    missing, and creates the role `devleap-alexk-github-deploy`. That role can only be
    assumed by **this repository's `main` branch**, and can only push to the one ECR
    repository and run a script on the one instance.
-2. In GitHub, go to **Settings > Secrets and variables > Actions > Variables** and add
-   two repository **variables** (not secrets); the script prints the values:
-   - `AWS_DEPLOY_ROLE_ARN`
-   - `EC2_INSTANCE_ID`
+2. That's all: the role ARN and instance ID are built into the workflow, so there is
+   nothing to set in GitHub. (To use a different role or instance, add repository
+   variables named `AWS_DEPLOY_ROLE_ARN` and `EC2_INSTANCE_ID`; they take precedence.)
 3. Push to `main`, or run the workflow from the **Actions** tab (**Run workflow**).
 
 ### Things to know

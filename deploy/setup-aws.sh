@@ -108,8 +108,6 @@ done
 [ "$PING" = "Online" ] || echo "   not Online yet. It can take a few more minutes; re-run this script to check."
 
 echo
-echo "Done. In GitHub open:  ${GITHUB_REPO}  >  Settings  >  Secrets and variables  >  Actions  >  Variables"
-echo "and add these two REPOSITORY VARIABLES (not secrets):"
-echo
-echo "  AWS_DEPLOY_ROLE_ARN = arn:aws:iam::${ACCOUNT_ID}:role/${DEPLOY_ROLE}"
-echo "  EC2_INSTANCE_ID     = ${INSTANCE_ID}"
+echo "Done. Nothing to configure in GitHub: the role ARN and instance ID are built into the workflow."
+echo "Role: arn:aws:iam::${ACCOUNT_ID}:role/${DEPLOY_ROLE}"
+echo "Push to main (or use Run workflow in the Actions tab) to deploy."

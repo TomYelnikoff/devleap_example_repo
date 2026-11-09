@@ -1,8 +1,8 @@
 name: Deploy to EC2
 
 # On every push to main: test and build the image, push it to ECR, then deploy it
-# to the EC2 instance and check it is healthy. Needs the AWS setup in
-# deploy/setup-aws.sh and two repository variables (see README, "Automatic deployment").
+# to the EC2 instance and check it is healthy. Needs the one-time AWS setup in
+# deploy/setup-aws.sh (see README, "Automatic deployment").
 on:
   push:
     branches: [main]
@@ -20,22 +20,16 @@ permissions:
 env:
   AWS_REGION: us-east-1
   ECR_REPOSITORY: devleap-ecr-alexk
+  # Built in so no GitHub settings are needed. To use another role or instance,
+  # set repository variables with these names and they take precedence.
+  AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN || 'arn:aws:iam::881490130721:role/devleap-alexk-github-deploy' }}
+  EC2_INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID || 'i-0fdc8357fdf0c281d' }}
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
-      - name: Check settings
-        env:
-          ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
-        run: |
-          if [ -z "$ROLE_ARN" ] || [ -z "$INSTANCE_ID" ]; then
-            echo "::error::Set the repository variables AWS_DEPLOY_ROLE_ARN and EC2_INSTANCE_ID (Settings > Secrets and variables > Actions > Variables). See README, Automatic deployment."
-            exit 1
-          fi
-
       - uses: actions/checkout@v4
 
       - uses: actions/setup-python@v5
@@ -80,7 +74,7 @@ jobs:
       - name: Sign in to AWS
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ env.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Sign in to ECR
@@ -103,7 +97,7 @@ jobs:
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
           IMAGE: ${{ steps.push.outputs.image }}
-          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+          INSTANCE_ID: ${{ env.EC2_INSTANCE_ID }}
         run: |
           # Send deploy/deploy.sh to the instance with its settings in front of it.
           jq -n --rawfile script deploy/deploy.sh \
