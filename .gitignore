@@ -1,0 +1,20 @@
+# Local data and secrets: never commit these.
+instance/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+secret_key
+.env
+.env.*
+.aws/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Tools and editors
+.playwright-mcp/
+.vscode/
+.idea/

@@ -1,0 +1,17 @@
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Sid": "InvokeClaudeOpus46OnBedrock",
+      "Effect": "Allow",
+      "Action": [
+        "bedrock:InvokeModel",
+        "bedrock:InvokeModelWithResponseStream"
+      ],
+      "Resource": [
+        "arn:aws:bedrock:*:*:inference-profile/global.anthropic.claude-opus-4-6*",
+        "arn:aws:bedrock:*::foundation-model/anthropic.claude-opus-4-6*"
+      ]
+    }
+  ]
+}

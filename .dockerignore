@@ -1,0 +1,22 @@
+# Keep secrets, local data and dev files out of the build context and image.
+.aws/
+.env
+.env.*
+instance/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+.venv/
+__pycache__/
+*.pyc
+.git/
+.playwright-mcp/
+
+Dockerfile
+.dockerignore
+compose*.yaml
+README.md
+deploy/
+test_bedrock.py

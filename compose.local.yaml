@@ -1,0 +1,12 @@
+# Local development: use the credentials from your AWS CLI configuration.
+#
+#   docker compose -f compose.yaml -f compose.local.yaml up --build -d
+#
+# Your ~/.aws folder is mounted read-only at runtime. The keys are never
+# copied into the image. Do not use this file on EC2: use an IAM role there.
+services:
+  app:
+    environment:
+      AWS_PROFILE: ${AWS_PROFILE:-default}
+    volumes:
+      - ~/.aws:/home/app/.aws:ro

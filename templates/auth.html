@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>{{ "Create account" if mode == "signup" else "Sign in" }} | Bedrock Chat</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Crect x='3' y='5' width='14' height='3.5' rx='1.75' fill='%232C44A6'/%3E%3Crect x='6' y='10.25' width='15' height='3.5' rx='1.75' fill='%232C44A6' opacity='.7'/%3E%3Crect x='3' y='15.5' width='12' height='3.5' rx='1.75' fill='%232C44A6' opacity='.45'/%3E%3C/svg%3E">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Hanken+Grotesk:wght@400;500;600;700&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;0,6..72,600;1,6..72,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+</head>
+<body>
+  <main class="auth">
+    <div class="auth-panel">
+      <a class="brand" href="/" aria-label="Bedrock Chat home">
+        <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="5" width="14" height="3.5" rx="1.75" fill="currentColor" stroke="none"/>
+          <rect x="6" y="10.25" width="15" height="3.5" rx="1.75" fill="currentColor" stroke="none" opacity=".7"/>
+          <rect x="3" y="15.5" width="12" height="3.5" rx="1.75" fill="currentColor" stroke="none" opacity=".45"/>
+        </svg>
+        <span>Bedrock Chat</span>
+      </a>
+
+      {% if mode == "signup" %}
+        <h1 class="auth-title">Create your account</h1>
+        <p class="auth-sub">Your conversations are saved to your account and visible only to you.</p>
+      {% else %}
+        <h1 class="auth-title">Sign in</h1>
+        <p class="auth-sub">Use your email and password to open your conversations.</p>
+      {% endif %}
+
+      {% if error %}
+        <p class="auth-error" role="alert">{{ error }}</p>
+      {% endif %}
+
+      <form class="auth-form" method="post" action="{{ '/signup' if mode == 'signup' else '/login' }}">
+        <div class="auth-field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" value="{{ email }}" required {{ "" if email else "autofocus" }}
+                 autocomplete="username" autocapitalize="none" spellcheck="false" maxlength="254">
+        </div>
+
+        <div class="auth-field">
+          <label for="password">Password</label>
+          {% if mode == "signup" %}
+            <input id="password" name="password" type="password" required {{ "autofocus" if email else "" }}
+                   minlength="{{ min_password }}" maxlength="{{ max_password }}"
+                   autocomplete="new-password" aria-describedby="passwordHelp">
+            <p class="auth-help" id="passwordHelp">At least {{ min_password }} characters.</p>
+          {% else %}
+            <input id="password" name="password" type="password" required {{ "autofocus" if email else "" }}
+                   maxlength="{{ max_password }}" autocomplete="current-password">
+          {% endif %}
+        </div>
+
+        {% if mode == "signup" %}
+        <div class="auth-field">
+          <label for="confirm">Confirm password</label>
+          <input id="confirm" name="confirm" type="password" required
+                 maxlength="{{ max_password }}" autocomplete="new-password">
+        </div>
+        {% endif %}
+
+        <button class="btn btn-primary auth-submit" type="submit">
+          {{ "Create account" if mode == "signup" else "Sign in" }}
+        </button>
+      </form>
+
+      {% if mode == "signup" %}
+        <p class="auth-switch">Already have an account? <a href="/login">Sign in</a></p>
+      {% elif allow_signup %}
+        <p class="auth-switch">New here? <a href="/signup">Create an account</a></p>
+      {% endif %}
+    </div>
+  </main>
+</body>
+</html>

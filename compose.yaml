@@ -1,0 +1,34 @@
+# Base service definition. Used as-is on EC2, where boto3 gets credentials
+# from the instance's IAM role. For local development, add compose.local.yaml:
+#
+#   docker compose -f compose.yaml -f compose.local.yaml up --build -d
+#
+name: bedrock-chat
+
+services:
+  app:
+    build: .
+    image: bedrock-chat:latest
+    ports:
+      # Listens on localhost only by default. Anyone who can reach the port can try to sign in.
+      # Set BIND_ADDRESS=0.0.0.0 to accept outside connections (for example on
+      # EC2 behind a security group that only allows your IP).
+      - "${BIND_ADDRESS:-127.0.0.1}:${HOST_PORT:-8001}:8000"
+    environment:
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-global.anthropic.claude-opus-4-6-v1}
+      # Login cookies: SECRET_KEY is generated and kept in the data volume if not set.
+      # Set COOKIE_SECURE=1 when serving over HTTPS, ALLOW_SIGNUP=0 to close signups.
+      SECRET_KEY: ${SECRET_KEY:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-0}
+      ALLOW_SIGNUP: ${ALLOW_SIGNUP:-1}
+      # Messages a free account can send in total before it needs the Pro plan.
+      FREE_MESSAGE_LIMIT: ${FREE_MESSAGE_LIMIT:-10}
+      # How many of the most recent messages are sent to Claude with each request.
+      CONTEXT_MESSAGES: ${CONTEXT_MESSAGES:-3}
+    volumes:
+      - chat-data:/data
+    restart: unless-stopped
+
+volumes:
+  chat-data:
