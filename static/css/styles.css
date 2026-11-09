@@ -431,11 +431,36 @@ svg[viewBox="0 0 24 24"] {
 }
 .msg-assistant .avatar svg { width: 24px; height: 24px; }
 
-/* Waiting for the first token */
-.msg-assistant.is-pending .avatar svg rect { animation: strata 1.2s ease-in-out infinite; }
-.msg-assistant.is-pending .avatar svg rect:nth-child(2) { animation-delay: .15s; }
-.msg-assistant.is-pending .avatar svg rect:nth-child(3) { animation-delay: .3s; }
-@keyframes strata { 0%, 100% { transform: translateX(0); } 50% { transform: translateX(2px); } }
+/* Bot mascot. Motion is driven by two custom properties, which pass into the
+   shared <symbol id="bot">: --bot-blink (eyes) and --bot-active (antenna, eyes
+   glancing, head bob). The mark idles by blinking; replies stay still until
+   Claude is writing. */
+.bot-face { fill: var(--bg, #fff); }
+.bot-eye {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bot-blink 4.6s infinite;
+  animation-play-state: var(--bot-blink, running);
+}
+.bot-eyes { animation: bot-look 2.2s ease-in-out infinite; animation-play-state: var(--bot-active, paused); }
+.bot-bulb {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: bot-ping 1s ease-in-out infinite;
+  animation-play-state: var(--bot-active, paused);
+}
+.bot-bob { animation: bot-bob 1.1s ease-in-out infinite; animation-play-state: var(--bot-active, paused); }
+@keyframes bot-blink { 0%, 90%, 100% { transform: scaleY(1); } 94% { transform: scaleY(.08); } }
+@keyframes bot-look { 0%, 100% { transform: translateX(0); } 25% { transform: translateX(-1.4px); } 75% { transform: translateX(1.4px); } }
+@keyframes bot-ping { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.5); opacity: .5; } }
+@keyframes bot-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-.8px); } }
+
+/* Replies: still, except while Claude is writing. */
+.msg-assistant .avatar { --bot-blink: paused; }
+.msg-assistant.is-pending .avatar,
+.msg-assistant.is-streaming .avatar { --bot-blink: running; --bot-active: running; }
+/* The welcome screen's large mark is awake. */
+.welcome-mark { --bot-active: running; }
 
 .msg-body { min-width: 0; }
 
