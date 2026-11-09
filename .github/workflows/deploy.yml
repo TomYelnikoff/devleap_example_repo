@@ -1,0 +1,142 @@
+name: Deploy to EC2
+
+# On every push to main: test and build the image, push it to ECR, then deploy it
+# to the EC2 instance and check it is healthy. Needs the AWS setup in
+# deploy/setup-aws.sh and two repository variables (see README, "Automatic deployment").
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {}   # lets you re-run a deploy by hand from the Actions tab
+
+# One deploy at a time. A newer push waits instead of cancelling a deploy in progress.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+permissions:
+  id-token: write   # to sign in to AWS with OIDC (no stored AWS keys)
+  contents: read
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: devleap-ecr-alexk
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Check settings
+        env:
+          ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          if [ -z "$ROLE_ARN" ] || [ -z "$INSTANCE_ID" ]; then
+            echo "::error::Set the repository variables AWS_DEPLOY_ROLE_ARN and EC2_INSTANCE_ID (Settings > Secrets and variables > Actions > Variables). See README, Automatic deployment."
+            exit 1
+          fi
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the Python code compiles
+        run: python -m py_compile app.py database.py
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Build the image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64        # the instance is x86_64
+          load: true                    # keep it local for now; it is only pushed after the smoke test
+          provenance: false
+          tags: bedrock-chat:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Smoke test the image
+        run: |
+          docker run -d --name smoke -p 8000:8000 bedrock-chat:ci
+          for _ in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:8000/healthz && break
+            sleep 1
+          done
+          echo
+          curl -fsS http://127.0.0.1:8000/healthz
+          # The app must send signed-out visitors to the sign-in page, and the page must load.
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/)" = 302
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/login)" = 200
+          test "$(curl -s -o /dev/null -w '%{http_code}' http://127.0.0.1:8000/api/conversations)" = 401
+          echo "Smoke test passed"
+
+      - name: Show logs if the smoke test failed
+        if: failure()
+        run: docker logs smoke || true
+
+      - name: Sign in to AWS
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Sign in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Push the image to ECR
+        id: push
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          IMAGE="$REGISTRY/$ECR_REPOSITORY"
+          docker tag bedrock-chat:ci "$IMAGE:${GITHUB_SHA}"
+          docker tag bedrock-chat:ci "$IMAGE:latest"
+          docker push "$IMAGE:${GITHUB_SHA}"
+          docker push "$IMAGE:latest"
+          echo "image=$IMAGE:${GITHUB_SHA}" >> "$GITHUB_OUTPUT"
+
+      - name: Deploy to the EC2 instance
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          IMAGE: ${{ steps.push.outputs.image }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          # Send deploy/deploy.sh to the instance with its settings in front of it.
+          jq -n --rawfile script deploy/deploy.sh \
+                --arg image "$IMAGE" --arg registry "$REGISTRY" --arg region "$AWS_REGION" \
+            '{commands: [("export IMAGE=" + ($image|@sh) + " REGISTRY=" + ($registry|@sh) + " AWS_REGION=" + ($region|@sh)
+                          + "\nbash <<'"'"'DEPLOY_SCRIPT_EOF'"'"'\n" + $script + "\nDEPLOY_SCRIPT_EOF")]}' > params.json
+
+          COMMAND_ID=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --comment "Deploy ${GITHUB_SHA::7} from GitHub Actions" \
+            --timeout-seconds 600 \
+            --parameters file://params.json \
+            --query Command.CommandId --output text)
+          echo "Systems Manager command: $COMMAND_ID"
+
+          STATUS=Pending
+          for _ in $(seq 1 120); do
+            STATUS=$(aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+                       --query Status --output text 2>/dev/null || echo Pending)
+            case "$STATUS" in Success|Failed|Cancelled|TimedOut) break ;; esac
+            sleep 5
+          done
+
+          echo "----- output from the instance -----"
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query StandardOutputContent --output text
+          echo "----- errors from the instance -----"
+          aws ssm get-command-invocation --command-id "$COMMAND_ID" --instance-id "$INSTANCE_ID" \
+            --query StandardErrorContent --output text
+
+          if [ "$STATUS" != "Success" ]; then
+            echo "::error::Deploy finished with status $STATUS. If the new version was unhealthy the previous one was restored; see the output above."
+            exit 1
+          fi
+          echo "Deployed ${GITHUB_SHA::7}"

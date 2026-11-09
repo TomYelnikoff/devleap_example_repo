@@ -167,6 +167,46 @@ Each person sees only their own conversations.
 - To stop strangers from creating accounts, set `ALLOW_SIGNUP=0` after you have
   created yours.
 
+## Automatic deployment (GitHub Actions)
+
+Every push to `main` runs `.github/workflows/deploy.yml`:
+
+1. Checks the Python compiles, builds the image (linux/amd64) and **smoke-tests it**
+   (health check, sign-in redirect, sign-in page, protected API returns 401). A broken
+   image stops here and nothing is deployed.
+2. Pushes the image to ECR as `<commit SHA>` and `latest`.
+3. Deploys it to the EC2 instance through AWS Systems Manager, running
+   `deploy/deploy.sh` on the instance: pull the image, replace the container, wait for
+   `/healthz`. **If the new version isn't healthy, the previous one is put back** and the
+   workflow fails. The data volume (accounts, conversations) is never touched.
+
+GitHub signs in to AWS with OIDC, so **no AWS keys are stored in GitHub**, and nothing
+connects to the instance over SSH.
+
+### One-time setup
+
+1. Run `bash deploy/setup-aws.sh` with admin AWS credentials. It attaches the Systems
+   Manager permission to the instance's role, creates the GitHub sign-in trust if
+   missing, and creates the role `devleap-alexk-github-deploy`. That role can only be
+   assumed by **this repository's `main` branch**, and can only push to the one ECR
+   repository and run a script on the one instance.
+2. In GitHub, go to **Settings > Secrets and variables > Actions > Variables** and add
+   two repository **variables** (not secrets); the script prints the values:
+   - `AWS_DEPLOY_ROLE_ARN`
+   - `EC2_INSTANCE_ID`
+3. Push to `main`, or run the workflow from the **Actions** tab (**Run workflow**).
+
+### Things to know
+
+- Anyone who can push to `main` can run commands on the instance through this
+  workflow. Protect the branch (require pull requests) if more people get access.
+- The instance's IP address isn't used, so it can change without breaking deploys.
+  The instance ID and ECR repository name are fixed in `setup-aws.sh` and the workflow.
+- To go back to an earlier version, revert the commit and push, or re-run the workflow
+  on an earlier commit from the Actions tab. Every image stays in ECR under its commit SHA.
+- Deploys run one at a time. The container is replaced, so there are a few seconds of
+  downtime per deploy.
+
 ## Conversation memory
 
 Each request sends Claude only your most recent messages (with the replies between

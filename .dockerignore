@@ -20,3 +20,4 @@ compose*.yaml
 README.md
 deploy/
 test_bedrock.py
+.github/
