@@ -70,7 +70,10 @@
     check: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>',
     retry: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 11a8 8 0 0 0-14.3-4.9L4 8M4 4v4h4M4 13a8 8 0 0 0 14.3 4.9L20 16M20 20v-4h-4"/></svg>',
     trash: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 7h14M10 7V5h4v2M7 7l1 12h8l1-12"/></svg>',
-    mark: '<svg viewBox="0 0 32 32" aria-hidden="true"><use href="#bot"/></svg>',
+    mark: '<svg viewBox="0 0 24 24" aria-hidden="true">' +
+      '<rect x="3" y="5" width="14" height="3.5" rx="1.75" fill="currentColor" stroke="none"/>' +
+      '<rect x="6" y="10.25" width="15" height="3.5" rx="1.75" fill="currentColor" stroke="none" opacity=".7"/>' +
+      '<rect x="3" y="15.5" width="12" height="3.5" rx="1.75" fill="currentColor" stroke="none" opacity=".45"/></svg>',
   };
 
   /* ---------- Settings storage (per browser, best effort) ---------- */
